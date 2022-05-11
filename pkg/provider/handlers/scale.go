@@ -1,21 +1,23 @@
 package handlers
 
 import (
-	"context"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 
 	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/namespaces"
 	gocni "github.com/containerd/go-cni"
 
+	"github.com/openfaas/faas-provider/proxy"
 	"github.com/openfaas/faas-provider/types"
+	"github.com/openfaas/faasd/vendor/github.com/openfaas/faas-provider/httputil"
 )
 
-func MakeReplicaUpdateHandler(client *containerd.Client, cni gocni.CNI) func(w http.ResponseWriter, r *http.Request) {
+func MakeReplicaUpdateHandler(client *containerd.Client, cni gocni.CNI, config types.FaaSConfig, resolver proxy.BaseURLResolver) func(w http.ResponseWriter, r *http.Request) {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 
@@ -24,14 +26,14 @@ func MakeReplicaUpdateHandler(client *containerd.Client, cni gocni.CNI) func(w h
 			return
 		}
 
-		defer r.Body.Close()
-
-		body, _ := ioutil.ReadAll(r.Body)
-		log.Printf("[Scale] request: %s\n", string(body))
+		bodyBytes, _ := ioutil.ReadAll(r.Body)
+		log.Printf("[Scale] request: %s\n", string(bodyBytes))
+		r.Body.Close()
+		r.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+		//defer r.Body.Close()
 
 		req := types.ScaleServiceRequest{}
-		err := json.Unmarshal(body, &req)
-
+		err := json.Unmarshal(bodyBytes, &req)
 		if err != nil {
 			log.Printf("[Scale] error parsing input: %s\n", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -54,6 +56,37 @@ func MakeReplicaUpdateHandler(client *containerd.Client, cni gocni.CNI) func(w h
 		}
 
 		name := req.ServiceName
+		proxyClient := NewProxyClientFromConfig(config)
+		tmpAddr, resolveErr := resolver.Resolve(name)
+		if resolveErr != nil {
+			// TODO: Should record the 404/not found error in Prometheus.
+			//log.Printf("resolver error: no endpoints for %s: %s\n", functionName, resolveErr.Error())
+			httputil.Errorf(w, http.StatusServiceUnavailable, "No endpoints available for: %s.", name)
+			return
+		}
+		addrStr := tmpAddr.String()
+		addrStr += "/scale-updater"
+		functionAddr, _ := url.Parse(addrStr)
+		proxyReq, err := buildProxyRequest(r, *functionAddr) //no params for replicaUpdater handler
+		if err != nil {
+			httputil.Errorf(w, http.StatusInternalServerError, "Failed to resolve service: %s.", name)
+			return
+		}
+		if proxyReq.Body != nil {
+			defer proxyReq.Body.Close()
+		}
+		reqctx := r.Context()
+		response, err := proxyClient.Do(proxyReq.WithContext(reqctx)) //send request to watchdog
+		if err != nil {
+			log.Printf("[Scale] error with proxy request to: %s, %s\n", proxyReq.URL.String(), err.Error())
+			httputil.Errorf(w, http.StatusInternalServerError, "Can't reach service for: %s.", name)
+			return
+		}
+		if response.Body != nil {
+			defer response.Body.Close()
+		}
+		log.Printf("[Scale] Set replicas - %s, %d\n", name, req.Replicas)
+		w.WriteHeader(response.StatusCode)
 
 		if _, err := GetFunction(client, name, namespace); err != nil {
 			msg := fmt.Sprintf("service %s not found", name)
@@ -62,7 +95,7 @@ func MakeReplicaUpdateHandler(client *containerd.Client, cni gocni.CNI) func(w h
 			return
 		}
 
-		ctx := namespaces.WithNamespace(context.Background(), namespace)
+		/*ctx := namespaces.WithNamespace(context.Background(), namespace)
 
 		ctr, ctrErr := client.LoadContainer(ctx, name)
 		if ctrErr != nil {
@@ -137,6 +170,6 @@ func MakeReplicaUpdateHandler(client *containerd.Client, cni gocni.CNI) func(w h
 				http.Error(w, deployErr.Error(), http.StatusBadRequest)
 				return
 			}
-		}
+		}*/
 	}
 }

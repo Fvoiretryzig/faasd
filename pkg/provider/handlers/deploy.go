@@ -125,7 +125,6 @@ func deploy(ctx context.Context, req types.FunctionDeployment, client *container
 		return err
 	}
 
-	envs := prepareEnv(req.EnvProcess, req.EnvVars)
 	mounts := getOSMounts()
 
 	for _, secret := range req.Secrets {
@@ -143,6 +142,13 @@ func deploy(ctx context.Context, req types.FunctionDeployment, client *container
 	if err != nil {
 		return fmt.Errorf("unable to apply labels to container: %s, error: %w", name, err)
 	}
+	if maxscale, ok := labels["com.openfaas.scale.max"]; ok {
+		req.EnvVars["max_scale"] = maxscale
+	}
+	if minscale, ok := labels["com.openfaas.scale.min"]; ok {
+		req.EnvVars["min_scale"] = minscale
+	}
+	envs := prepareEnv(req.EnvProcess, req.EnvVars)
 
 	var memory *specs.LinuxMemory
 	if req.Limits != nil && len(req.Limits.Memory) > 0 {

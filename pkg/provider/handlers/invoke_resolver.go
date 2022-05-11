@@ -10,8 +10,6 @@ import (
 	faasd "github.com/openfaas/faasd/pkg"
 )
 
-const watchdogPort = 8080
-
 type InvokeResolver struct {
 	client *containerd.Client
 }
@@ -37,7 +35,7 @@ func (i *InvokeResolver) Resolve(functionName string) (url.URL, error) {
 
 	serviceIP := function.IP
 
-	urlStr := fmt.Sprintf("http://%s:%d", serviceIP, watchdogPort)
+	urlStr := fmt.Sprintf("http://%s:%s", serviceIP, watchdogPort)
 
 	urlRes, err := url.Parse(urlStr)
 	if err != nil {

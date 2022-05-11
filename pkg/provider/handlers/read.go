@@ -11,7 +11,7 @@ import (
 	"github.com/openfaas/faas-provider/types"
 )
 
-func MakeReadHandler(client *containerd.Client) func(w http.ResponseWriter, r *http.Request) {
+func MakeReadHandler(client *containerd.Client, config types.FaaSConfig, resolver *InvokeResolver) func(w http.ResponseWriter, r *http.Request) {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 
@@ -35,22 +35,28 @@ func MakeReadHandler(client *containerd.Client) func(w http.ResponseWriter, r *h
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-
-		for _, fn := range fns {
+		//send request to watchdog to get replica info
+		for name, fn := range fns {
+			replicaInfo, err := updateReplica(name, config, resolver, r)
+			if err != nil {
+				log.Println("[Read] (cannot get replica count in container) read replica failed: ", err)
+			}
 			annotations := &fn.annotations
 			labels := &fn.labels
 			memory := resource.NewQuantity(fn.memoryLimit, resource.BinarySI)
 			status := types.FunctionStatus{
-				Name:        fn.name,
-				Image:       fn.image,
-				Replicas:    uint64(fn.replicas),
-				Namespace:   fn.namespace,
-				Labels:      labels,
-				Annotations: annotations,
-				Secrets:     fn.secrets,
-				EnvVars:     fn.envVars,
-				EnvProcess:  fn.envProcess,
-				CreatedAt:   fn.createdAt,
+				Name:              fn.name,
+				Image:             fn.image,
+				Replicas:          replicaInfo.Replicas,
+				AvailableReplicas: replicaInfo.AvailableReplicas,
+				InvocationCount:   replicaInfo.InvocationCount,
+				Namespace:         fn.namespace,
+				Labels:            labels,
+				Annotations:       annotations,
+				Secrets:           fn.secrets,
+				EnvVars:           fn.envVars,
+				EnvProcess:        fn.envProcess,
+				CreatedAt:         fn.createdAt,
 			}
 
 			// Do not remove below memory check for 0

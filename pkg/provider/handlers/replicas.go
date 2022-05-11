@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/containerd/containerd"
@@ -9,7 +10,7 @@ import (
 	"github.com/openfaas/faas-provider/types"
 )
 
-func MakeReplicaReaderHandler(client *containerd.Client) func(w http.ResponseWriter, r *http.Request) {
+func MakeReplicaReaderHandler(client *containerd.Client, config types.FaaSConfig, resolver *InvokeResolver) func(w http.ResponseWriter, r *http.Request) {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -29,11 +30,16 @@ func MakeReplicaReaderHandler(client *containerd.Client) func(w http.ResponseWri
 		}
 
 		if f, err := GetFunction(client, functionName, lookupNamespace); err == nil {
+			replicaInfo, err := updateReplica(functionName, config, resolver, r)
+			if err != nil {
+				log.Println("[Replica reader] replica reader error: ", err)
+			}
 			found := types.FunctionStatus{
 				Name:              functionName,
 				Image:             f.image,
-				AvailableReplicas: uint64(f.replicas),
-				Replicas:          uint64(f.replicas),
+				AvailableReplicas: replicaInfo.AvailableReplicas,
+				Replicas:          replicaInfo.Replicas,
+				InvocationCount:   replicaInfo.InvocationCount,
 				Namespace:         f.namespace,
 				Labels:            &f.labels,
 				Annotations:       &f.annotations,
