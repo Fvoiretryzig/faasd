@@ -30,7 +30,7 @@ func makeProviderCmd() *cobra.Command {
 		Short: "Run the faasd-provider",
 	}
 
-	command.Flags().String("pull-policy", "Always", `Set to "Always" to force a pull of images upon deployment, or "IfNotPresent" to try to use a cached image.`)
+	command.Flags().String("pull-policy", "IfNotPresent", `Set to "Always" to force a pull of images upon deployment, or "IfNotPresent" to try to use a cached image.`)
 
 	command.RunE = func(_ *cobra.Command, _ []string) error {
 
@@ -38,7 +38,7 @@ func makeProviderCmd() *cobra.Command {
 		if flagErr != nil {
 			return flagErr
 		}
-
+		log.Println("this is pull policy:", pullPolicy)
 		alwaysPull := false
 		if pullPolicy == "Always" {
 			alwaysPull = true

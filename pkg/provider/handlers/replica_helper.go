@@ -148,7 +148,6 @@ func updateReplica(functionName string, config types.FaaSConfig, resolver proxy.
 			return nil, marshalErr
 		}
 	}
-	function.Name = functionName
 	//d := time.Since(s)
 	//log.Printf("Replicas: %s, (%d/%d) %dms\n", functionName, function.AvailableReplicas, function.Replicas, d.Milliseconds())
 	return function, nil

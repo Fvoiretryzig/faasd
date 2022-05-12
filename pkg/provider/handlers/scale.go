@@ -14,7 +14,7 @@ import (
 
 	"github.com/openfaas/faas-provider/proxy"
 	"github.com/openfaas/faas-provider/types"
-	"github.com/openfaas/faasd/vendor/github.com/openfaas/faas-provider/httputil"
+	"github.com/openfaas/faas-provider/httputil"
 )
 
 func MakeReplicaUpdateHandler(client *containerd.Client, cni gocni.CNI, config types.FaaSConfig, resolver proxy.BaseURLResolver) func(w http.ResponseWriter, r *http.Request) {
