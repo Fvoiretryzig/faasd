@@ -1,4 +1,4 @@
-version: "3.7"
+version: "3.3"
 services:
   basic-auth-plugin:
     image: ghcr.io/openfaas/basic-auth:0.21.0
@@ -68,6 +68,9 @@ services:
       - type: bind
         source: ./secrets/basic-auth-password
         target: /var/secrets/basic-auth-password
+      - type: bind
+        source: ./secrets/basic-auth-user
+        target: /run/secrets/basic-auth-user
       - type: bind
         source: ./alertmanager
         target: /alertmanager

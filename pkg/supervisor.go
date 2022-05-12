@@ -221,7 +221,8 @@ func (s *Supervisor) Start(svcs []Service) error {
 
 		log.Printf("Created container: %s\n", newContainer.ID())
 
-		task, err := newContainer.NewTask(ctx, cio.BinaryIO("/usr/local/bin/faasd", nil))
+		// task, err := newContainer.NewTask(ctx, cio.BinaryIO("/usr/local/bin/faasd", nil))
+		task, err := newContainer.NewTask(ctx, cio.LogFile("/home/nano/logs/"+svc.Name+"Output"))
 		if err != nil {
 			log.Printf("Error creating task: %s\n", err)
 			return err
