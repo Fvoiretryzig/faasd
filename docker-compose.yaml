@@ -71,7 +71,7 @@ services:
       - type: bind
         source: ./secrets/basic-auth-user
         target: /run/secrets/basic-auth-user
-      - type: bind
+      - type: volume
         source: ./alertmanager
         target: /alertmanager
     cap_add:
