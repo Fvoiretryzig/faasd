@@ -14,6 +14,7 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/containers"
+	"github.com/containerd/containerd/contrib/nvidia"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
 	gocni "github.com/containerd/go-cni"
@@ -143,14 +144,15 @@ func deploy(ctx context.Context, req types.FunctionDeployment, client *container
 		return fmt.Errorf("unable to apply labels to container: %s, error: %w", name, err)
 	}
 	if maxscale, ok := labels["com.openfaas.scale.max"]; ok {
-		if len(req.EnvVars)==0 {
+		if len(req.EnvVars) == 0 {
 			req.EnvVars = make(map[string]string)
 		}
 		req.EnvVars["max_scale"] = maxscale
 	}
 	if minscale, ok := labels["com.openfaas.scale.min"]; ok {
-		if len(req.EnvVars)==0 {
-            req.EnvVars = make(map[string]string)                                                                                                                   }
+		if len(req.EnvVars) == 0 {
+			req.EnvVars = make(map[string]string)
+		}
 		req.EnvVars["min_scale"] = minscale
 	}
 	envs := prepareEnv(req.EnvProcess, req.EnvVars)
@@ -174,6 +176,7 @@ func deploy(ctx context.Context, req types.FunctionDeployment, client *container
 		containerd.WithSnapshotter(snapshotter),
 		containerd.WithNewSnapshot(name+"-snapshot", image),
 		containerd.WithNewSpec(oci.WithImageConfig(image),
+			nvidia.WithGPUs(nvidia.WithDevices(0)),
 			oci.WithHostname(name),
 			oci.WithCapabilities([]string{"CAP_NET_RAW"}),
 			oci.WithMounts(mounts),
