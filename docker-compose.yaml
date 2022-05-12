@@ -20,7 +20,7 @@ services:
 
   nats:
     image: docker.io/library/nats-streaming:0.22.0
-# nobody
+    # nobody
     user: "65534"
     command:
       - "/nats-streaming-server"
@@ -30,7 +30,7 @@ services:
       - "--dir=/nats"
       - "--cluster_id=faas-cluster"
     volumes:
-# Data directory
+      # Data directory
       - type: bind
         source: ./nats
         target: /nats
@@ -39,14 +39,14 @@ services:
 
   prometheus:
     image: docker.io/prom/prometheus:v2.14.0
-# nobody
+    # nobody
     user: "65534"
     volumes:
-# Config directory
+      # Config directory
       - type: bind
         source: ./prometheus.yml
         target: /etc/prometheus/prometheus.yml
-# Data directory
+      # Data directory
       - type: bind
         source: ./prometheus
         target: /prometheus
@@ -54,6 +54,24 @@ services:
       - CAP_NET_RAW
     ports:
        - "127.0.0.1:9090:9090"
+
+  alertmanager:
+    image: docker.io/prom/alertmanager:v0.18.0
+    volumes:
+      # Config directory
+      - type: bind
+        source: ./alertmanager.yml
+        target: /etc/alertmanager/alertmanager.yml
+      - type: bind
+        source: ./secrets/basic-auth-password
+        target: /var/secrets/basic-auth-password
+      - type: bind
+        source: ./alertmanager
+        target: /alertmanager
+    cap_add:
+      - CAP_NET_RAW
+    ports:
+      - "9093:9093"
 
   gateway:
     image: ghcr.io/openfaas/gateway:0.21.3
