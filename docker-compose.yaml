@@ -55,8 +55,10 @@ services:
         target: /prometheus
     cap_add:
       - CAP_NET_RAW
+    depends_on:
+      - alertmanager
     ports:
-       - "127.0.0.1:9090:9090"
+      - "127.0.0.1:9090:9090"
 
   alertmanager:
     image: docker.io/prom/alertmanager:v0.18.0
