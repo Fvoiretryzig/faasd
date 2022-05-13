@@ -113,6 +113,9 @@ services:
       - prometheus
     ports:
        - "8080:8080"
+    networks:
+      - gatewayNet:
+        ipv4_address: 10.62.0.40
 
   queue-worker:
     image: ghcr.io/openfaas/queue-worker:0.12.2

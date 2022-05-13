@@ -94,6 +94,7 @@ func (s *Supervisor) Start(svcs []Service) error {
 	}
 	hosts := fmt.Sprintf(`
 127.0.0.1	localhost
+10.62.0.40	gateway
 %s	faasd-provider`, gw)
 
 	writeHostsErr := ioutil.WriteFile(path.Join(wd, "hosts"),
@@ -188,13 +189,13 @@ func (s *Supervisor) Start(svcs []Service) error {
 			Source:      path.Join(wd, "resolv.conf"),
 			Options:     []string{"rbind", "ro"},
 		})
-
 		mounts = append(mounts, specs.Mount{
 			Destination: "/etc/hosts",
 			Type:        "bind",
 			Source:      path.Join(wd, "hosts"),
 			Options:     []string{"rbind", "ro"},
 		})
+		log.Printf("this is %s mount hosts file", svc.Name)
 
 		if len(svc.User) > 0 {
 			log.Printf("Running %s with user: %q", svc.Name, svc.User)
@@ -221,8 +222,7 @@ func (s *Supervisor) Start(svcs []Service) error {
 
 		log.Printf("Created container: %s\n", newContainer.ID())
 
-		// task, err := newContainer.NewTask(ctx, cio.BinaryIO("/usr/local/bin/faasd", nil))
-		task, err := newContainer.NewTask(ctx, cio.LogFile("/home/nano/logs/"+svc.Name+"Output"))
+		task, err := newContainer.NewTask(ctx, cio.BinaryIO("/usr/local/bin/faasd", nil))
 		if err != nil {
 			log.Printf("Error creating task: %s\n", err)
 			return err
@@ -242,18 +242,20 @@ func (s *Supervisor) Start(svcs []Service) error {
 		}
 
 		log.Printf("%s has IP: %s\n", newContainer.ID(), ip)
+		if svc.Name != "gateway" {
+			log.Printf("this is %s update hosts file!", svc.Name)
+			hosts, err := ioutil.ReadFile("hosts")
+			if err != nil {
+				log.Printf("Unable to read hosts file: %s\n", err.Error())
+			}
 
-		hosts, err := ioutil.ReadFile("hosts")
-		if err != nil {
-			log.Printf("Unable to read hosts file: %s\n", err.Error())
-		}
-
-		hosts = []byte(string(hosts) + fmt.Sprintf(`
+			hosts = []byte(string(hosts) + fmt.Sprintf(`
 %s	%s
 `, ip, svc.Name))
 
-		if err := ioutil.WriteFile("hosts", hosts, workingDirectoryPermission); err != nil {
-			log.Printf("Error writing file: %s %s\n", "hosts", err)
+			if err := ioutil.WriteFile("hosts", hosts, workingDirectoryPermission); err != nil {
+				log.Printf("Error writing file: %s %s\n", "hosts", err)
+			}
 		}
 
 		if _, err := task.Wait(ctx); err != nil {
@@ -269,7 +271,6 @@ func (s *Supervisor) Start(svcs []Service) error {
 			return err
 		}
 	}
-
 	return nil
 }
 
